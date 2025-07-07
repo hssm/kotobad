@@ -1,4 +1,5 @@
 import xml.etree.ElementTree as ET
+import random
 
 # misc=6 derog
 # misc=28 joc
@@ -12,10 +13,12 @@ tags = {
     'vulgar expression or word': 'vulgar'
 }
 
+random.seed(7890)
 
 def parse():
     tree = ET.parse('JMdict_e')
     rude_words = get_rude(tree.getroot())
+    random.shuffle(rude_words)
     for entry in rude_words:
         kana = entry.find('.//reb').text
         keb = entry.find('.//keb')
@@ -26,11 +29,27 @@ def parse():
         tagged = get_tagged_senses(entry)
         pretty_rude = get_pretty_senses_rude(tagged)
         pretty_normal = get_pretty_senses_normal(tagged)
+
+        seq = entry.find('.//ent_seq').text
+        start = f"---BEGIN---{seq}"
+        word = f'{kanji}' if kanji == kana else f"{kanji} [{kana}]"
+        stop = "---END---"
+
+        open_post = pretty_rude
+        reply_post = ''
+        if len(pretty_normal) > 0:
+            reply_start = "---REPLY---"
+            reply_post = f"\n{reply_start}\n{pretty_normal}"
+
         print(
 f"""
-{kanji} [{kana}]
-{pretty_rude}
+{start}
+{word}
+
+{open_post}{reply_post}
+{stop}
 """, end="")
+
 
 
 def get_rude(root):
@@ -81,11 +100,30 @@ def get_pretty_senses_rude(tagged):
             gloss_line = '; '.join(gloss)
             pretty += f"{prefix}{gloss_line}\n"
 
-    return pretty
+    return pretty.strip()
 
 def get_pretty_senses_normal(tagged):
     pretty = ""
-    return pretty
+    grouped = {}
+    for sense in tagged:
+        if len(sense['tags']) == 0:
+            tag_complete = 'other meanings'
+            if not tag_complete in grouped:
+                grouped[tag_complete] = []
+            grouped[tag_complete].append(sense['glosses'])
+
+    for tag, glosses in grouped.items():
+        pretty += f"[{tag}]\n"
+        prefix = "- " if len(glosses) > 1 else ""
+        for gloss in glosses:
+            gloss_line = '; '.join(gloss)
+            next = f"{prefix}{gloss_line}\n"
+            if len(pretty + next + "[+more]") >= 295:
+                pretty += "[+more]"
+                break
+            pretty += next
+
+    return pretty.strip()
 
 
 
