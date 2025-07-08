@@ -62,6 +62,8 @@ def get_rude(root):
                 continue
             for misc in sense.findall('.//misc'):
                 if misc.text in tags.keys():
+                    if added:
+                        continue
                     rude_words.append(entry)
                     added = True
     return rude_words
